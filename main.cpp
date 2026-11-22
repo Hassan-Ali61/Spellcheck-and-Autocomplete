@@ -6,6 +6,7 @@
 #include "Console.h"
 #include "Dictionary.h"
 #include "HistoryQueue.h"
+#include "LiveSearch.h"
 #include "Trie.h"
 #include "UndoStack.h"
 
@@ -13,10 +14,10 @@ using namespace std;
 
 namespace
 {
-    constexpr int TOP_K = 5; 
+    constexpr int TOP_K = 5; // how many suggestions are shown
     const char *const DICTIONARY_FILE = "words_alpha.txt";
 
-
+    // Everything the menu works with.
     struct App
     {
         Trie trie;
@@ -24,6 +25,7 @@ namespace
         UndoStack undo;
     };
 
+    // Measures how long something takes. Create it right before the call you want to time.
     class Timer
     {
     public:
@@ -45,13 +47,14 @@ namespace
         return text.str();
     }
 
-    
+    // ---- input ----
+
     char readChoice()
     {
         char choice;
-        cout << console::prompt("Enter your choice (a-g): ");
+        cout << console::prompt("Enter your choice (a-h): ");
         if (!(cin >> choice))
-            return 'g'; 
+            return 'h'; // input ended (Ctrl+Z / Ctrl+D): leave the program cleanly
         clearInput();
         return static_cast<char>(tolower(static_cast<unsigned char>(choice)));
     }
@@ -90,7 +93,8 @@ namespace
         return selection;
     }
 
-    
+    // ---- output ----
+
     void showMenu()
     {
         const string line = "=========================================================";
@@ -105,7 +109,8 @@ namespace
         cout << console::key("d.") << " Spell Check\n";
         cout << console::key("e.") << " Recent Searches\n";
         cout << console::key("f.") << " Undo Search\n";
-        cout << console::key("g.") << " exit\n";
+        cout << console::key("g.") << " Live Search\n";
+        cout << console::key("h.") << " exit\n";
     }
 
     void showSuggestion(int rank, const string &word, const string &details)
@@ -114,7 +119,8 @@ namespace
              << console::bold(word) << console::dim(" \t" + details) << endl;
     }
 
-    
+    // ---- actions ----
+
     // A "use" = a successful search, or a word picked from a suggestion list.
     void registerUse(App &app, const string &word)
     {
@@ -202,9 +208,8 @@ namespace
             registerUse(app, top[selection - 1].word);
     }
 
-    void spellCheck(App &app)
+    void spellCheckWord(App &app, const string &word)
     {
-        const string word = readWord("Enter a word");
         Result results[TOP_K];
 
         Timer timer;
@@ -232,6 +237,44 @@ namespace
         else
         {
             cout << console::warning("No suggestions found!") << "\n";
+        }
+    }
+
+    void spellCheck(App &app)
+    {
+        spellCheckWord(app, readWord("Enter a word"));
+    }
+
+    // Search box that shows suggestions after every letter you type.
+    void liveSearch(App &app)
+    {
+        const LiveSearchOutcome outcome = runLiveSearch(app.trie, TOP_K);
+
+        switch (outcome.type)
+        {
+        case LiveSearchOutcome::UNAVAILABLE:
+            cout << "\n"
+                 << console::warning("Live Search needs an interactive terminal.") << "\n";
+            break;
+        case LiveSearchOutcome::CANCELLED:
+            cout << "\n"
+                 << console::dim("Live search cancelled.") << "\n";
+            break;
+        case LiveSearchOutcome::SELECTED:
+            cout << "\n"
+                 << console::success("Selected: " + outcome.word) << "\n";
+            registerUse(app, outcome.word);
+            break;
+        case LiveSearchOutcome::SUBMITTED:
+            if (app.trie.Search(outcome.word))
+            {
+                cout << "\n"
+                     << console::success("Word present!") << "\n";
+                registerUse(app, outcome.word);
+            }
+            else
+                spellCheckWord(app, outcome.word); // not in the dictionary: show corrections
+            break;
         }
     }
 
@@ -296,6 +339,9 @@ int main()
             undoLastUse(app);
             break;
         case 'g':
+            liveSearch(app);
+            break;
+        case 'h':
             cout << "\n"
                  << console::info("Good Bye!") << "\n";
             break;
@@ -303,7 +349,7 @@ int main()
             cout << console::error("Invalid choice! ");
             break;
         }
-    } while (choice != 'g');
+    } while (choice != 'h');
 
     return 0;
 }

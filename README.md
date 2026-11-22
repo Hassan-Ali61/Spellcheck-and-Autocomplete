@@ -4,12 +4,15 @@ A console application written in C++ that stores a dictionary of 370,105 English
 
 Built as a Data Structures course project at FAST-NUCES Karachi, without using STL containers such as `vector` or `pair`. Everything is built from arrays, structs, pointers, and a hand-written linked list.
 
-**Author:** Hassan Ali Khan, BS Artificial Intelligence, FAST-NUCES Karachi
+**Member 1:** Hassan Ali Khan, BS Artificial Intelligence, FAST-NUCES Karachi
+**Member 2:** Mohammad Hunain, BS Artificial Intelligence, FAST-NUCES Karachi
+**Member 3:** Momin Faisal, BS Artificial Intelligence, FAST-NUCES Karachi
 
 ## Features
 
 - **Insert and search** words in a Trie, case-insensitive, letters a to z only.
 - **Autocomplete:** the top 5 completions of a prefix, ranked by usage frequency.
+- **Live Search:** a search box where suggestions update after every letter you type. Press a number key to pick a suggestion, Enter to search the typed text (a misspelled word goes straight to spell check), or Esc to cancel.
 - **Spell check:** the closest dictionary words within 2 edits, ranked by edit distance first and frequency second. A correctly spelled word is reported as such.
 - **Learns from use:** a word's frequency goes up when it is searched or picked from a suggestion list, so it moves higher in future results.
 - **Recent searches:** shows the last 5 words you used (circular queue).
@@ -79,9 +82,22 @@ On Linux or macOS, compile to `trie` and run `./trie`.
 | d. Spell Check | Reports correct spelling, or lists the closest words with distance and frequency |
 | e. Recent Searches | Shows the last 5 used words, oldest to newest |
 | f. Undo Search | Undoes the most recent use and lowers that word's frequency by one (never below 1) |
-| g. exit | Closes the program |
+| g. Live Search | Type a word and watch suggestions update after every letter (see below) |
+| h. exit | Closes the program |
 
-A "use" is a successful search or a word selected from the autocomplete or spell check list. Showing suggestions alone does not change any frequency.
+A "use" is a successful search or a word selected from the autocomplete, spell check, or live search list. Showing suggestions alone does not change any frequency.
+
+### Live Search controls
+
+| Key | Action |
+| --- | --- |
+| Letters | Add a letter; the suggestions refresh immediately |
+| Backspace | Delete the last letter |
+| 1 to 5 | Pick that suggestion (counts as a use) |
+| Enter | Search the typed text: an existing word is counted as a use, otherwise spell check runs on it |
+| Esc | Cancel |
+
+Live Search reads single key presses (`_getch()` on Windows, terminal raw mode on Linux and macOS) and redraws the suggestion list with ANSI cursor-movement codes. It needs a real terminal such as Windows Terminal, PowerShell, or the VS Code terminal; if input or output is redirected, the program says so and returns to the menu.
 
 ## Data structures and algorithms
 
@@ -210,6 +226,7 @@ Tests run by hand through the menu:
 - Each node reserves 26 pointers even when most are empty, which is memory-heavy for a large dictionary. Storing only the children that exist would reduce memory.
 - Recent Searches records every use, so repeated searches for the same word appear more than once.
 - The program is a console application. A graphical interface could be added on top of the same Trie.
+- Live Search assumes the terminal is wide enough for one suggestion per line; in a very narrow window the lines wrap and the redraw looks broken.
 
 ## Project structure
 
@@ -220,7 +237,9 @@ EditDistance.h    edit distance with a dynamic programming table
 HistoryQueue.h    circular queue for recent searches
 UndoStack.h       linked list stack for undo
 Dictionary.h      dictionary file loader and built-in sample words
-Console.h         console colors and input helpers
+Console.h         console colors, cursor control, and input helpers
+Keyboard.h        single key press input (Windows and Linux/macOS)
+LiveSearch.h      the live search box
 words_alpha.txt   dictionary file (not included, see Getting started)
 README.md         this file
 ```
